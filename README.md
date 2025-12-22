@@ -16,7 +16,6 @@ the [EUDI Wallet Reference Implementation project description](https://github.co
 * [How to contribute](#how-to-contribute)
 * [License](#license)
 
-
 ## Overview
 
 This is a Swift library, that supports 
