@@ -16,7 +16,7 @@
 import Foundation
 
 public protocol ChallengeEndpointClientType: Sendable {
-  func getChallenge() async throws -> Result<Nonce, Error>
+  func getChallenge() async throws -> Nonce
 }
 
 public actor ChallengeEndpointClient: ChallengeEndpointClientType {
@@ -32,20 +32,20 @@ public actor ChallengeEndpointClient: ChallengeEndpointClientType {
     self.challengeEndpoint = challengeEndpoint
   }
   
-  public func getChallenge() async throws -> Result<Nonce, Error> {
+  public func getChallenge() async throws -> Nonce {
 
     var request = URLRequest(url: challengeEndpoint)
     request.httpMethod = HTTPMethod.POST.rawValue
     
-    let result: Result<ResponseWithHeaders<ChallengeResponse>, PostError> = await poster.post(
+    let result: Result<ResponseWithHeaders<ChallengeResponse>, Error> = await poster.post(
       request: request
     )
     
     switch result {
     case .success(let response):
-      return .success(.init(value: response.body.attestationChallenge))
+      return Nonce(value: response.body.attestationChallenge)
     case .failure(let error):
-      return .failure(error)
+      throw error
     }
   }
 }
