@@ -872,7 +872,7 @@ public extension Issuer {
     dPopNonce: Nonce? = nil
   ) async throws -> AuthorizedRequest {
     if let refreshToken = authorizedRequest.refreshToken {
-        let (accessToken, _, _, timeStamp, _) = try await authorizer.refreshAccessToken(
+        let (accessToken, refreshToken, _, _, timeStamp, _) = try await authorizer.refreshAccessToken(
           clientId: clientId,
           refreshToken: refreshToken,
           dpopNonce: dPopNonce,
@@ -893,7 +893,7 @@ public extension Issuer {
     dPopNonce: Nonce?
   ) async throws -> AuthorizedRequest {
     if let refreshToken = authorizedRequest.refreshToken {
-        let (accessToken, _, _, timeStamp, _) = try await authorizer.refreshAccessToken(
+        let (accessToken, refreshToken, _, _, timeStamp, _) = try await authorizer.refreshAccessToken(
           client: client,
           refreshToken: refreshToken,
           dpopNonce: dPopNonce,
@@ -901,6 +901,7 @@ public extension Issuer {
         )
           return authorizedRequest.replacing(
             accessToken: accessToken,
+			refreshToken: refreshToken,
             timeStamp: timeStamp?.asTimeInterval ?? .zero
           )
     }
