@@ -140,6 +140,7 @@ protocol AuthorizationServerClientType: Sendable {
     maxRetries: Int
   ) async throws -> (
     IssuanceAccessToken,
+	IssuanceRefreshToken?,
     AuthorizationDetailsIdentifiers?,
     TokenType?,
     Int?,
@@ -161,6 +162,7 @@ protocol AuthorizationServerClientType: Sendable {
     maxRetries: Int
   ) async throws -> (
     IssuanceAccessToken,
+	IssuanceRefreshToken?,
     AuthorizationDetailsIdentifiers?,
     TokenType?,
     Int?,
@@ -555,6 +557,7 @@ internal actor AuthorizationServerClient: AuthorizationServerClientType {
     maxRetries: Int = Constants.MAX_RETRIES
   ) async throws -> (
     IssuanceAccessToken,
+	IssuanceRefreshToken?,
     AuthorizationDetailsIdentifiers?,
     TokenType?,
     Int?,
@@ -582,7 +585,7 @@ internal actor AuthorizationServerClient: AuthorizationServerClientType {
       case .success(
         let tokenType,
         let accessToken,
-        _,
+        let refreshToken,
         let expiresIn,
         _,
         let identifiers
@@ -595,6 +598,10 @@ internal actor AuthorizationServerClient: AuthorizationServerClientType {
               ),
               expiresIn: TimeInterval(expiresIn)
             ),
+			try .init(
+			  refreshToken: refreshToken,
+			  expiresIn: nil
+			),
             identifiers,
             TokenType(
               value: tokenType
@@ -629,6 +636,7 @@ internal actor AuthorizationServerClient: AuthorizationServerClientType {
     maxRetries: Int = Constants.MAX_RETRIES
   ) async throws -> (
     IssuanceAccessToken,
+	IssuanceRefreshToken?, 
     AuthorizationDetailsIdentifiers?,
     TokenType?,
     Int?,
@@ -658,7 +666,7 @@ internal actor AuthorizationServerClient: AuthorizationServerClientType {
       case .success(
         let tokenType,
         let accessToken,
-        _,
+        let refreshToken,
         let expiresIn,
         _,
         let identifiers
@@ -671,6 +679,10 @@ internal actor AuthorizationServerClient: AuthorizationServerClientType {
               ),
               expiresIn: TimeInterval(expiresIn)
             ),
+			try IssuanceRefreshToken(
+				refreshToken: refreshToken,
+			  expiresIn: nil
+			),
             identifiers,
             TokenType(
               value: tokenType
