@@ -40,37 +40,3 @@ public struct AuthorizationRequested: Sendable {
     self.dpopNonce = dpopNonce
   }
 }
-
-/// State denoting that caller has followed the GetAuthorizationCodeURL URL and response received
-/// from the authorization server and processed successfully.
-public struct AuthorizationCodeRetrieved: Sendable {
-  public let credentials: [CredentialIdentifier]
-  public let authorizationCode: IssuanceAuthorization
-  public let pkceVerifier: PKCEVerifier
-  public let configurationIds: [CredentialConfigurationIdentifier]
-  public let dpopNonce: Nonce?
-  public let state: String
-  
-  public init(
-    credentials: [CredentialIdentifier],
-    authorizationCode: IssuanceAuthorization,
-    pkceVerifier: PKCEVerifier,
-    configurationIds: [CredentialConfigurationIdentifier],
-    dpopNonce: Nonce?,
-    state: String
-  ) throws {
-    
-    guard case .authorizationCode = authorizationCode else {
-      throw ValidationError.error(
-        reason: "IssuanceAuthorization must be authorization code"
-      )
-    }
-
-    self.credentials = credentials
-    self.authorizationCode = authorizationCode
-    self.pkceVerifier = pkceVerifier
-    self.configurationIds = configurationIds
-    self.dpopNonce = dpopNonce
-    self.state = state
-  }
-}

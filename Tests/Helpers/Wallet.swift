@@ -365,28 +365,21 @@ extension Wallet {
     )
       print("--> [AUTHORIZATION] Placed PAR. Get authorization code URL is: \(parRequested.authorizationCodeURL)")
       
-      let authorizationCode = try await loginUserAndGetAuthCode(
+      let authorizationCodeString = try await loginUserAndGetAuthCode(
         getAuthorizationCodeUrl: parRequested.authorizationCodeURL.url,
         actingUser: actingUser
-      ) ?? { throw  ValidationError.error(reason: "Could not retrieve authorization code") }()
-      let issuanceAuthorization: IssuanceAuthorization = .authorizationCode(authorizationCode: authorizationCode)
-      let unAuthorized = try await issuer.handleAuthorizationCode(
-        request: parRequested,
-        authorizationCode: issuanceAuthorization
       )
-      /*
-      authorizationCode = ""
-      let _: IssuanceAuthorization = .authorizationCode(authorizationCode: authorizationCode)
-      unAuthorized = await issuer.handleAuthorizationCode(
-        request: parRequested,
-        code: &authorizationCode
-      )
-       */
-      print("--> [AUTHORIZATION] Authorization code retrieved: \(authorizationCode)")
+      
+      print("--> [AUTHORIZATION] Authorization code received: \(authorizationCodeString)")
+      
+      let authorizationCode = try AuthorizationCode(value: authorizationCodeString)
+//      let authorizationCode = try AuthorizationCode(testValue: &authorizationCodeString)
+      
+      print("--> [AUTHORIZATION] Authorization code used: \(authorizationCode.value)")
       
         let authorizedRequest = try await issuer.authorizeWithAuthorizationCode(
-          request: unAuthorized,
-          preparedRequest: parRequested,
+          request: parRequested,
+          authorizationCode: authorizationCode,
           authorizationDetailsInTokenRequest: .doNotInclude,
           grant: offer.grants!
         )
@@ -480,11 +473,17 @@ extension Wallet {
   }
 }
 
+extension AuthorizationCode {
+    init(testValue: inout String) throws {
+        self = try AuthorizationCode(value: testValue)
+    }
+}
+
 extension Wallet {
   private func loginUserAndGetAuthCode(
     getAuthorizationCodeUrl: URL,
     actingUser: ActingUser
-  ) async throws -> String? {
+  ) async throws -> String {
     let helper = WebpageHelper(Self.walletSession)
     return try await helper.submit(
       formUrl: getAuthorizationCodeUrl,
