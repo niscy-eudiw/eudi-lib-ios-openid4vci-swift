@@ -363,34 +363,35 @@ extension Wallet {
     let parRequested = try await issuer.prepareAuthorizationRequest(
       credentialOffer: offer
     )
-      print("--> [AUTHORIZATION] Placed PAR. Get authorization code URL is: \(parRequested.authorizationCodeURL)")
+    print("--> [AUTHORIZATION] Placed PAR. Get authorization code URL is: \(parRequested.authorizationCodeURL)")
+    
+    let (authorizationCodeString, serverState) = try await loginUserAndGetAuthCode(
+      getAuthorizationCodeUrl: parRequested.authorizationCodeURL.url,
+      actingUser: actingUser
+    )
+    
+    print("--> [AUTHORIZATION] Authorization code received: \(authorizationCodeString)")
+    
+    let authorizationCode = try AuthorizationCode(value: authorizationCodeString)
+    // let authorizationCode = try AuthorizationCode(testValue: &authorizationCodeString)
+    
+    print("--> [AUTHORIZATION] Authorization code used: \(authorizationCode.value)")
+    
+    let authorizedRequest = try await issuer.authorizeWithAuthorizationCode(
+      serverState: serverState,
+      request: parRequested,
+      authorizationCode: authorizationCode,
+      authorizationDetailsInTokenRequest: .doNotInclude,
+      grant: offer.grants!
+    )
+      print("--> [AUTHORIZATION] Authorization code exchanged with access token : \(authorizedRequest.accessToken)")
       
-      let authorizationCodeString = try await loginUserAndGetAuthCode(
-        getAuthorizationCodeUrl: parRequested.authorizationCodeURL.url,
-        actingUser: actingUser
+      _ = authorizedRequest.accessToken.isExpired(
+        issued: authorizedRequest.timeStamp,
+        at: Date().timeIntervalSinceReferenceDate
       )
       
-      print("--> [AUTHORIZATION] Authorization code received: \(authorizationCodeString)")
-      
-      let authorizationCode = try AuthorizationCode(value: authorizationCodeString)
-//      let authorizationCode = try AuthorizationCode(testValue: &authorizationCodeString)
-      
-      print("--> [AUTHORIZATION] Authorization code used: \(authorizationCode.value)")
-      
-        let authorizedRequest = try await issuer.authorizeWithAuthorizationCode(
-          request: parRequested,
-          authorizationCode: authorizationCode,
-          authorizationDetailsInTokenRequest: .doNotInclude,
-          grant: offer.grants!
-        )
-          print("--> [AUTHORIZATION] Authorization code exchanged with access token : \(authorizedRequest.accessToken)")
-          
-          _ = authorizedRequest.accessToken.isExpired(
-            issued: authorizedRequest.timeStamp,
-            at: Date().timeIntervalSinceReferenceDate
-          )
-          
-          return authorizedRequest
+      return authorizedRequest
   }
   
   private func submissionUseCase(
@@ -483,7 +484,7 @@ extension Wallet {
   private func loginUserAndGetAuthCode(
     getAuthorizationCodeUrl: URL,
     actingUser: ActingUser
-  ) async throws -> String {
+  ) async throws -> (String, String) {
     let helper = WebpageHelper(Self.walletSession)
     return try await helper.submit(
       formUrl: getAuthorizationCodeUrl,
