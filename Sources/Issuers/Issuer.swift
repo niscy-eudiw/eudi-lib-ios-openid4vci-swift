@@ -17,7 +17,7 @@ import Foundation
 import JOSESwift
 
 /// A protocol defining the operations required for an issuer in the credential issuance process.
-public protocol IssuerType: Sendable {
+public protocol IssuerType: RefreshAccessToken {
   
   /// Initiates an authorization request using a credential offer.
   ///
@@ -819,7 +819,7 @@ public extension Issuer {
     dPopNonce: Nonce? = nil
   ) async throws -> AuthorizedRequest {
     if let refreshToken = authorizedRequest.refreshToken {
-        let (accessToken, refreshToken, _, _, timeStamp, _) = try await authorizer.refreshAccessToken(
+        let (accessToken, newRefreshToken, _, _, timeStamp, _) = try await authorizer.refreshAccessToken(
           clientId: clientId,
           refreshToken: refreshToken,
           dpopNonce: dPopNonce,
@@ -827,6 +827,7 @@ public extension Issuer {
         )
         return authorizedRequest.replacing(
             accessToken: accessToken,
+            refreshToken: newRefreshToken,
             timeStamp: timeStamp?.asTimeInterval ?? .zero
           )
     }
@@ -853,6 +854,24 @@ public extension Issuer {
           )
     }
     return authorizedRequest
+  }
+
+  /// Refreshes the access token using the issuer's configured client.
+  /// - Parameters:
+  ///   - authorizedRequest: The authorized request containing the tokens to refresh.
+  ///   - dPopNonce: An optional nonce for DPoP (Demonstrating Proof-of-Possession).
+  /// - Returns: A new `AuthorizedRequest` with refreshed tokens if successful,
+  ///            or the original request if refresh is not possible.
+  /// - Throws: An error if the token refresh request fails.
+  func refresh(
+    authorizedRequest: AuthorizedRequest,
+    dPopNonce: Nonce?
+  ) async throws -> AuthorizedRequest {
+    try await refresh(
+      client: config.client,
+      authorizedRequest: authorizedRequest,
+      dPopNonce: dPopNonce
+    )
   }
 }
 

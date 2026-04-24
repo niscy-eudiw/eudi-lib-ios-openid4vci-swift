@@ -256,6 +256,27 @@ switch requestOutcome {
 
 You can also check the unit test target for more usage examples.
 
+### Refresh Access Token
+
+A Wallet/Caller can refresh the `AccessToken` of an `AuthorizedRequest` using a `refresh_token` grant.
+
+Prerequisites:
+1. Authorization Server supports `refresh_token` grant
+2. `AuthorizedRequest` contains a `RefreshToken`
+
+Library will perform a `refresh_token` grant, and return the updated `AuthorizedRequest`:
+
+```swift
+import OpenID4VCI
+
+let authorizedRequest: AuthorizedRequest = ... // has been retrieved in a previous step
+let issuer: Issuer = ...
+
+let updatedAuthorizedRequest = try await issuer.refresh(
+    authorizedRequest: authorizedRequest
+)
+```
+
 ## Configuration options
 
 ```swift
