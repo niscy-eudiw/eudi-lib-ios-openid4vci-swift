@@ -158,10 +158,19 @@ public actor CredentialOfferRequestResolver {
   }
   
   /// Extracts the authorization server URL from the grants if specified in the credential offer.
+  /// Checks both authorization code and pre-authorization code grants as per the specification.
   private func getAuthorizationServerFromGrants(_ grants: GrantsDTO?) -> URL? {
     guard let grants = grants else { return nil }
 
+    // Check authorization code grant first
     if let authServer = grants.authorizationCode?.authorizationServer,
+       !authServer.isEmpty,
+       let url = URL(string: authServer) {
+      return url
+    }
+
+    // Check pre-authorization code grant
+    if let authServer = grants.preAuthorizationCode?.authorizationServer,
        !authServer.isEmpty,
        let url = URL(string: authServer) {
       return url

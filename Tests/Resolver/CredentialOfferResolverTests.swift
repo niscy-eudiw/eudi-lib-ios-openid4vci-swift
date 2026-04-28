@@ -561,6 +561,57 @@ class CredentialOfferResolverTests: XCTestCase {
     }
   }
 
+  func testResolvesCredentialOfferWithPreAuthorizationServerHint() async throws {
+    // Given: A credential offer with authorization_server hint in pre-authorization code flow
+    let credentialIssuerMetadataResolver = CredentialIssuerMetadataResolver(
+      fetcher: createMetadataFetcher()
+    )
+
+    let authorizationServerMetadataResolver = AuthorizationServerMetadataResolver(
+      oidcFetcher: Fetcher<OIDCProviderMetadata>(session: NetworkingMock(
+        path: "oidc_authorization_server_metadata",
+        extension: "json"
+      )),
+      oauthFetcher: Fetcher<AuthorizationServerMetadata>(session: NetworkingMock(
+        path: "oauth_authorization_server_metadata",
+        extension: "json"
+      ))
+    )
+
+    let credentialOfferRequestResolver = CredentialOfferRequestResolver(
+      fetcher: Fetcher<CredentialOfferRequestObject>(session: NetworkingMock(
+        path: "credential_offer_with_pre_auth_server_hint",
+        extension: "json"
+      )),
+      credentialIssuerMetadataResolver: credentialIssuerMetadataResolver,
+      authorizationServerMetadataResolver: authorizationServerMetadataResolver
+    )
+
+    // When
+    let result = await credentialOfferRequestResolver.resolve(
+      source: .fetchByReference(url: .stub()),
+      policy: .ignoreSigned
+    )
+
+    // Then
+    switch result {
+    case .success(let credentialOffer):
+      XCTAssertEqual(credentialOffer.credentialIssuerIdentifier.url.absoluteString, "https://credential-issuer.example.com")
+
+      // Verify the grants contain the authorization_server in pre-auth flow
+      if case .preAuthorizedCode(let preAuthCode) = credentialOffer.grants {
+        XCTAssertEqual(preAuthCode.authorizationServer?.absoluteString, "https://example.com/realms/pid-issuer-realm")
+        XCTAssertEqual(preAuthCode.preAuthorizedCode, "123456")
+        XCTAssertEqual(preAuthCode.txCode?.length, 6)
+      } else {
+        XCTFail("Expected pre-authorized_code grant")
+      }
+
+    case .failure(let error):
+      XCTFail("Expected success but got failure: \(error.localizedDescription)")
+    }
+  }
+
   func testFallsBackToFirstAuthServerWhenNoHintProvided() async throws {
     // Given: A credential offer without authorization_server hint (pre-authorized code flow)
     let credentialIssuerMetadataResolver = CredentialIssuerMetadataResolver(
