@@ -456,16 +456,16 @@ extension Wallet {
       dPopNonce: nil
     )
     
-      switch deferredRequestResponse {
-      case .issued(let credential):
-        return credential
-      case .issuancePending(_, let interval):
-        throw ValidationError.error(reason: "Credential not ready yet. Try after \(interval)")
-      case .errored(_, let errorDescription):
-        throw ValidationError.error(reason: "\(errorDescription ?? "Something went wrong with your deferred request response")")
-      case .issuanceStillPending(let interval):
-        throw ValidationError.error(reason: "Credential still not ready yet. Try after \(interval)")
-      }
+    switch deferredRequestResponse {
+    case .issued(let credential):
+      return credential
+    case .issuancePending(_, let interval):
+      throw ValidationError.error(reason: "Credential not ready yet. Try after \(interval)")
+    case .errored(_, let errorDescription):
+      throw ValidationError.error(reason: "\(errorDescription ?? "Something went wrong with your deferred request response")")
+    case .issuanceStillPending(let interval):
+      throw ValidationError.error(reason: "Credential still not ready yet. Try after \(interval)")
+    }
   }
 }
 

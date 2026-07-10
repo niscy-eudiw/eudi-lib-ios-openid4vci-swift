@@ -83,8 +83,12 @@ public extension ProofTypesPolicy {
       return
     }
 
-    guard let attestationMeta = proofTypesSupported["attestation"],
-          Self.requiresKeyAttestation(attestationMeta) else {
+    guard
+      let jwtMeta = proofTypesSupported["jwt"],
+      let attestationMeta = proofTypesSupported["attestation"],
+      Self.requiresKeyAttestation(jwtMeta),
+      Self.requiresKeyAttestation(attestationMeta)
+    else {
       throw CredentialIssuanceError.issuerMetadataNoAttestedProofType
     }
 
