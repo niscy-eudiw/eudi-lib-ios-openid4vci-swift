@@ -32,7 +32,8 @@ public enum ValidationError: Error, LocalizedError {
   case stateMismatch(String, String)
   case issMismatch(expected: String, actual: String)
   case issParameterRequiredButMissing(expected: String)
-  
+  case issParameterNotSupported(issuer: String)
+
   public var errorDescription: String? {
     switch self {
     case .error(let reason):
@@ -67,6 +68,8 @@ public enum ValidationError: Error, LocalizedError {
       return "issMismatch: expected \(expected) but received \(actual)"
     case .issParameterRequiredButMissing(let expected):
       return "issParameterRequiredButMissing: authorization server \(expected) advertises authorization_response_iss_parameter_supported but the callback did not include an `iss` parameter"
+    case .issParameterNotSupported(let issuer):
+      return "issParameterNotSupported: wallet requires the `iss` authorization response parameter but authorization server \(issuer) does not advertise authorization_response_iss_parameter_supported"
     }
   }
 }
