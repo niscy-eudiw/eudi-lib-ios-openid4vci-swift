@@ -78,7 +78,11 @@ public struct EcConfig: Sendable {
 public struct RsaConfig: Sendable {
 
   /// RSA algorithms the wallet can offer.
-  public static let platformSupportedAlgorithms: [JWEAlgorithm] = JWEAlgorithm.Family.parse(.RSA).all()
+  public static let platformSupportedAlgorithms: [JWEAlgorithm] = [
+    .init(.RSA_OAEP_256),
+    .init(.RSA_OAEP_384),
+    .init(.RSA_OAEP_512)
+  ]
 
   /// Size of the generated RSA key pair.
   public let rcaKeySize: Int

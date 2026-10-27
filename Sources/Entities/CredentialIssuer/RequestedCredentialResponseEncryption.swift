@@ -41,6 +41,13 @@ public enum RequestedCredentialResponseEncryption: Sendable {
     else {
       throw ValidationError.error(reason: "Provided encryption algorithm is not an asymmetric encryption algorithm")
     }
+    // RSA1_5 is prohibited by RFC 8725 §3.2 and RSA-OAEP relies on SHA-1; see RsaConfig.
+    let prohibited: [JWEAlgorithm] = [.init(.RSA1_5), .init(.RSA_OAEP)]
+    if prohibited.contains(where: { $0.name == responseEncryptionAlg.name }) {
+      throw ValidationError.error(
+        reason: "Provided encryption algorithm \(responseEncryptionAlg.name) is not allowed for response encryption"
+      )
+    }
   }
   
   // Validate key is for encryption operation

@@ -409,7 +409,7 @@ public struct EcConfig: Sendable {
 
 public struct RsaConfig: Sendable {
   public let rcaKeySize: Int                    // >= 2048, default 2048
-  public let supportedJWEAlgorithms: [JWEAlgorithm]   // subset of RSA1_5, RSA-OAEP, RSA-OAEP-256, RSA-OAEP-384, RSA-OAEP-512
+  public let supportedJWEAlgorithms: [JWEAlgorithm]   // subset of RSA-OAEP-256, RSA-OAEP-384, RSA-OAEP-512 (RSA1_5 and RSA-OAEP are not supported)
 }
 ```
 

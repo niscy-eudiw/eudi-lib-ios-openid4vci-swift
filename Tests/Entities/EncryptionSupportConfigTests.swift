@@ -35,13 +35,13 @@ final class EncryptionSupportConfigTests: XCTestCase {
     XCTAssertEqual(config.rsaConfig?.rcaKeySize, 2048)
     XCTAssertEqual(
       config.rsaConfig?.supportedJWEAlgorithms.map(\.name),
-      ["RSA1_5", "RSA-OAEP", "RSA-OAEP-256", "RSA-OAEP-384", "RSA-OAEP-512"]
+      ["RSA-OAEP-256", "RSA-OAEP-384", "RSA-OAEP-512"]
     )
     XCTAssertEqual(
       config.supportedEncryptionMethods.map(\.name),
       ["A128GCM", "A192GCM", "A256GCM", "A128CBC-HS256", "A192CBC-HS384", "A256CBC-HS512"]
     )
-    XCTAssertEqual(config.supportedEncryptionAlgorithms.count, 9)
+    XCTAssertEqual(config.supportedEncryptionAlgorithms.count, 7)
   }
 
   func testOpenId4VCIConfigDefaultsToDefaultEncryptionSupportConfig() {
@@ -89,12 +89,74 @@ final class EncryptionSupportConfigTests: XCTestCase {
       rsaConfig: RsaConfig()
     )
     let spec = Issuer.createResponseEncryptionSpec(
-      algorithmsSupported: [.init(.ECDH_ES), .init(.RSA_OAEP)],
+      algorithmsSupported: [.init(.ECDH_ES), .init(.RSA_OAEP_256)],
       encryptionMethodsSupported: [.init(.A128CBC_HS256)],
       walletConfig: walletConfig
     )
-    XCTAssertEqual(spec?.algorithm.name, "RSA-OAEP")
+    XCTAssertEqual(spec?.algorithm.name, "RSA-OAEP-256")
     XCTAssertEqual(spec?.jwk?.keyType, .RSA)
+  }
+
+  // MARK: - Response encryption: prohibited RSA algorithms (RFC 8725 §3.2)
+
+  func testRsaPlatformAlgorithmsExcludeRSA1_5AndRSAOAEP() {
+    let names = RsaConfig.platformSupportedAlgorithms.map(\.name)
+    XCTAssertEqual(names, ["RSA-OAEP-256", "RSA-OAEP-384", "RSA-OAEP-512"])
+    XCTAssertFalse(EncryptionSupportConfig.default.supports(algorithm: .init(.RSA1_5)))
+    XCTAssertFalse(EncryptionSupportConfig.default.supports(algorithm: .init(.RSA_OAEP)))
+  }
+
+  func testIssuerListingProhibitedRSAFirstFallsThroughToSafeAlgorithm() throws {
+    let spec = Issuer.createResponseEncryptionSpec(
+      algorithmsSupported: [.init(.RSA1_5), .init(.RSA_OAEP), .init(.RSA_OAEP_256)],
+      encryptionMethodsSupported: [.init(.A128GCM)],
+      walletConfig: .default
+    )
+    XCTAssertEqual(spec?.algorithm.name, "RSA-OAEP-256")
+  }
+
+  func testIssuerListingProhibitedRSAFirstPrefersECDH() throws {
+    let spec = Issuer.createResponseEncryptionSpec(
+      algorithmsSupported: [.init(.RSA1_5), .init(.ECDH_ES)],
+      encryptionMethodsSupported: [.init(.A128GCM)],
+      walletConfig: .default
+    )
+    XCTAssertEqual(spec?.algorithm.name, "ECDH-ES")
+    XCTAssertEqual(spec?.jwk?.keyType, .EC)
+  }
+
+  func testIssuerOfferingOnlyProhibitedRSAYieldsNoSpec() throws {
+    let spec = Issuer.createResponseEncryptionSpec(
+      algorithmsSupported: [.init(.RSA1_5), .init(.RSA_OAEP)],
+      encryptionMethodsSupported: [.init(.A128GCM)],
+      walletConfig: .default
+    )
+    XCTAssertNil(spec)
+  }
+
+  func testRequestedResponseEncryptionRejectsProhibitedRSA() throws {
+    let spec = try XCTUnwrap(Issuer.createResponseEncryptionSpec(
+      algorithmsSupported: [.init(.RSA_OAEP_256)],
+      encryptionMethodsSupported: [.init(.A128GCM)],
+      walletConfig: .default
+    ))
+    let jwk = try XCTUnwrap(spec.jwk)
+    let key = try XCTUnwrap(spec.privateKey)
+
+    for algorithm in [JWEAlgorithm(.RSA1_5), JWEAlgorithm(.RSA_OAEP)] {
+      XCTAssertThrowsError(try RequestedCredentialResponseEncryption(
+        encryptionJwk: jwk,
+        encryptionKey: key,
+        responseEncryptionAlg: algorithm,
+        responseEncryptionMethod: .init(.A128GCM)
+      ), "\(algorithm.name) must be rejected")
+    }
+    XCTAssertNoThrow(try RequestedCredentialResponseEncryption(
+      encryptionJwk: jwk,
+      encryptionKey: key,
+      responseEncryptionAlg: .init(.RSA_OAEP_256),
+      responseEncryptionMethod: .init(.A128GCM)
+    ))
   }
 
   func testRSAAlgorithmAllowListIsHonoured() throws {
