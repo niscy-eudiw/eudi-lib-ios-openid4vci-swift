@@ -518,6 +518,7 @@ internal actor AuthorizationServerClient: AuthorizationServerClientType {
 
       switch response.body {
       case .success(let tokenType, let accessToken, let refreshToken, let refreshTokenExpiresIn, let expiresIn, _, let identifiers):
+        try ensureDpopIfRequired(tokenType: tokenType)
         return (
             try .init(
               accessToken: accessToken,
@@ -629,6 +630,7 @@ internal actor AuthorizationServerClient: AuthorizationServerClientType {
         _,
         let identifiers
       ):
+        try ensureDpopIfRequired(tokenType: tokenType)
         return (
           try .init(
             accessToken: accessToken,
@@ -743,6 +745,7 @@ internal actor AuthorizationServerClient: AuthorizationServerClientType {
         _,
         let identifiers
       ):
+        try ensureDpopIfRequired(tokenType: tokenType)
         return (
           try IssuanceAccessToken(
             accessToken: accessToken,
@@ -858,6 +861,7 @@ internal actor AuthorizationServerClient: AuthorizationServerClientType {
           _,
           let identifiers
         ):
+          try ensureDpopIfRequired(tokenType: tokenType)
           return (
               try .init(
                 accessToken: accessToken,
@@ -1052,7 +1056,19 @@ private extension AuthorizationServerClient {
       return [:]
     }
   }
-  
+
+  /// Rejects an access token that is not DPoP-bound when the wallet requires DPoP, so that an
+  /// authorization server cannot silently downgrade the wallet to a Bearer token (CWE-757).
+  /// `TokenType(value:)` maps any value other than `DPoP` (including a missing one) to `.bearer`.
+  func ensureDpopIfRequired(tokenType: String?) throws {
+    guard config.requireDpop else {
+      return
+    }
+    if TokenType(value: tokenType) != .dpop {
+      throw ValidationError.dpopRequiredButNotIssued(tokenType: tokenType)
+    }
+  }
+
   func authCodeFlow(
     authorizationCode: AuthorizationCode,
     redirectionURI: URL,
