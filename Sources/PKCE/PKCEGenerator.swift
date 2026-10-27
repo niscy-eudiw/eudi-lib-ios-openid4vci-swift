@@ -49,61 +49,45 @@ public struct PKCEGenerator {
     return data
   }
   
+  /// RFC 7636 §4.1 unreserved characters: [A-Z] / [a-z] / [0-9] / "-" / "." / "_" / "~" (66 characters).
+  static let unreservedCharacters: [Character] = Array(
+    "abcdefghijklmnopqrstuvwxyz" + "ABCDEFGHIJKLMNOPQRSTUVWXYZ" + "0123456789" + "-._~"
+  )
+
   public static func generateRandomString(length: Int = 48) -> String? {
-    // Define your character sets
-    let lowercaseCharacters = "abcdefghijklmnopqrstuvwxyz"
-    let uppercaseCharacters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    let numberCharacters = "0123456789"
-    let specialCharacters = "-._~"
-    
-    // Combine all character sets
-    let allCharacters = lowercaseCharacters + uppercaseCharacters + numberCharacters + specialCharacters
-    
-    // Generate random bytes
-    guard let randomBytes = generateRandomData(length: length) else {
-      return nil
-    }
-    
-    // Convert random bytes to characters based on the combined character set
-    var randomString = ""
-    for byte in randomBytes {
-      let randomIndex = Int(byte) % allCharacters.count
-      let randomCharacter = allCharacters[allCharacters.index(allCharacters.startIndex, offsetBy: randomIndex)]
-      randomString.append(randomCharacter)
-    }
-    
-    return randomString
+    uniformRandomString(length: length, alphabet: unreservedCharacters)
   }
-  
+
   public static func generateRandomBase64String(length: Int = 48) -> String? {
-    // Define your character sets
-    let lowercaseCharacters = "abcdefghijklmnopqrstuvwxyz"
-    let uppercaseCharacters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-    let numberCharacters = "0123456789"
-    let specialCharacters = "-._~"
-    
-    // Combine all character sets
-    let allCharacters = lowercaseCharacters + uppercaseCharacters + numberCharacters + specialCharacters
-    
-    // Generate random bytes
-    guard let randomBytes = generateRandomData(length: length) else {
+    guard let randomString = uniformRandomString(length: length, alphabet: unreservedCharacters) else {
       return nil
     }
-    
-    // Convert random bytes to characters based on the combined character set
-    var randomString = ""
-    for byte in randomBytes {
-      let randomIndex = Int(byte) % allCharacters.count
-      let randomCharacter = allCharacters[allCharacters.index(allCharacters.startIndex, offsetBy: randomIndex)]
-      randomString.append(randomCharacter)
+    return Data(randomString.utf8).base64EncodedString()
+  }
+
+  /// Samples `length` characters uniformly from `alphabet` using `SecRandomCopyBytes`.
+  ///
+  /// A plain `byte % alphabet.count` is biased whenever 256 is not a multiple of the alphabet size
+  /// (with 66 characters, the first 58 would be ~1/3 more likely than the last 8). Rejection sampling
+  /// discards bytes at or above the largest multiple of `alphabet.count` that fits in a byte (198 for
+  /// 66 characters), so every remaining byte maps to each character equally often.
+  ///
+  /// - Returns: The random string, or `nil` if the system random number generator fails.
+  static func uniformRandomString(length: Int, alphabet: [Character]) -> String? {
+    precondition((1...256).contains(alphabet.count), "Alphabet must contain 1...256 characters")
+    let rejectionLimit = 256 - 256 % alphabet.count
+
+    var characters: [Character] = []
+    characters.reserveCapacity(max(length, 0))
+    while characters.count < length {
+      guard let randomBytes = generateRandomData(length: length - characters.count) else {
+        return nil
+      }
+      for byte in randomBytes where Int(byte) < rejectionLimit {
+        characters.append(alphabet[Int(byte) % alphabet.count])
+      }
     }
-    
-    // Encode the random string as Base64
-    if let data = randomString.data(using: .utf8) {
-      return data.base64EncodedString()
-    }
-    
-    return nil
+    return String(characters)
   }
   
   public static func generateCodeChallenge() -> String? {

@@ -289,7 +289,9 @@ internal actor AuthorizationServerClient: AuthorizationServerClientType {
       )
     }
     
-    let codeVerifier = PKCEGenerator.codeVerifier() ?? ""
+    guard let codeVerifier = PKCEGenerator.codeVerifier() else {
+      throw ValidationError.error(reason: "Unable to generate PKCE code verifier")
+    }
     let verifier = try PKCEVerifier(
       codeVerifier: codeVerifier,
       codeVerifierMethod: CodeChallenge.sha256.rawValue
@@ -346,7 +348,9 @@ internal actor AuthorizationServerClient: AuthorizationServerClientType {
     
     let scopeValue: String? = scopes.isEmpty ? nil : scopes.map { $0.value }.joined(separator: " ")
     
-    let codeVerifier = PKCEGenerator.codeVerifier() ?? ""
+    guard let codeVerifier = PKCEGenerator.codeVerifier() else {
+      throw ValidationError.error(reason: "Unable to generate PKCE code verifier")
+    }
     let authRequest: AuthorizationRequest = .init(
       responseType: Self.responseType,
       clientId: config.client.id,
