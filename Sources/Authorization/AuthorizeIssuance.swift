@@ -196,7 +196,7 @@ internal actor AuthorizeIssuance: AuthorizeIssuanceType {
               credentialIdentifiers: identifiers,
               timeStamp: Date().timeIntervalSinceReferenceDate,
               dPopNonce: dPopNonce,
-              grantType: .init(grant: credentialOffer.grants)
+              grantType: .preAuthorizationCode
             )
     default:
       throw ValidationError.error(
@@ -246,7 +246,7 @@ internal actor AuthorizeIssuance: AuthorizeIssuanceType {
       credentialIdentifiers: response.identifiers,
       timeStamp: Date().timeIntervalSinceReferenceDate,
       dPopNonce: response.dPopNonce,
-      grantType: .init(grant: grant)
+      grantType: .authorizationCode
     )
   }
 }

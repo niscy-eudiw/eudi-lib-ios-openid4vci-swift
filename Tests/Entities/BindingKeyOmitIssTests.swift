@@ -214,4 +214,96 @@ final class BindingKeyOmitIssTests: XCTestCase {
     let payload = try decodeProofPayload(proof)
     XCTAssertEqual(payload[JWTClaimNames.issuer] as? String, "wallet-client-id")
   }
+
+  // MARK: - clientId fallback
+
+  func testJwtProofUsesClientIdWhenIssuerNotSet() async throws {
+    let (jwk, privateKey) = try ecKeyPair()
+    let requester = MockIssuanceRequester(issuerMetadata: try metadata())
+    let binding: BindingKey = .jwt(
+      algorithm: .init(.ES256),
+      jwk: jwk,
+      privateKey: privateKey
+    )
+
+    let proof = try await binding.toSupportedProof(
+      issuanceRequester: requester,
+      credentialSpec: msoMdocCredentialSpec(),
+      cNonce: "nonce-123",
+      omitIss: false,
+      clientId: "attested-client-id"
+    )
+
+    let payload = try decodeProofPayload(proof)
+    XCTAssertEqual(payload[JWTClaimNames.issuer] as? String, "attested-client-id")
+  }
+
+  func testJwtProofPrefersClientIdOverBindingKeyIssuer() async throws {
+    let (jwk, privateKey) = try ecKeyPair()
+    let requester = MockIssuanceRequester(issuerMetadata: try metadata())
+    let binding: BindingKey = .jwt(
+      algorithm: .init(.ES256),
+      jwk: jwk,
+      privateKey: privateKey,
+      issuer: "https://credential-issuer.example.com"
+    )
+
+    let proof = try await binding.toSupportedProof(
+      issuanceRequester: requester,
+      credentialSpec: msoMdocCredentialSpec(),
+      cNonce: "nonce-123",
+      omitIss: false,
+      clientId: "attested-client-id"
+    )
+
+    let payload = try decodeProofPayload(proof)
+    XCTAssertEqual(payload[JWTClaimNames.issuer] as? String, "attested-client-id")
+  }
+
+  func testJwtProofDropsClientIdWhenOmitIssTrue() async throws {
+    let (jwk, privateKey) = try ecKeyPair()
+    let requester = MockIssuanceRequester(issuerMetadata: try metadata())
+    let binding: BindingKey = .jwt(
+      algorithm: .init(.ES256),
+      jwk: jwk,
+      privateKey: privateKey
+    )
+
+    let proof = try await binding.toSupportedProof(
+      issuanceRequester: requester,
+      credentialSpec: msoMdocCredentialSpec(),
+      cNonce: "nonce-123",
+      omitIss: true,
+      clientId: "attested-client-id"
+    )
+
+    let payload = try decodeProofPayload(proof)
+    XCTAssertNil(payload[JWTClaimNames.issuer])
+  }
+
+  // MARK: - Issuer.omitIss (#418)
+
+  private func attestedClient() throws -> Client {
+    let privateKey = try KeyController.generateECDHPrivateKey()
+    let jwk = try ECPublicKey(publicKey: KeyController.generateECDHPublicKey(from: privateKey))
+    let signingKey = SigningKeyProxy.secKey(privateKey)
+    return try .attested(
+      id: "attested-client-id", alg: .init(.ES256), jwk: jwk,
+      popJwtSpec: .init(signingAlgorithm: .ES256, duration: 300, typ: "oauth-client-attestation-pop+jwt"),
+      clientAttestationProvider: { _ in (ClientAttestationJWT(""), signingKey) }
+    )
+  }
+
+  func testOmitIssForPreAuthorizedCodeWithPublicClient() {
+    XCTAssertTrue(Issuer.omitIss(grantType: .preAuthorizationCode, client: .public(id: "public-client")))
+  }
+
+  func testKeepIssForPreAuthorizedCodeWithAttestedClient() throws {
+    XCTAssertFalse(Issuer.omitIss(grantType: .preAuthorizationCode, client: try attestedClient()))
+  }
+
+  func testKeepIssForAuthorizationCode() throws {
+    XCTAssertFalse(Issuer.omitIss(grantType: .authorizationCode, client: .public(id: "public-client")))
+    XCTAssertFalse(Issuer.omitIss(grantType: .authorizationCode, client: try attestedClient()))
+  }
 }

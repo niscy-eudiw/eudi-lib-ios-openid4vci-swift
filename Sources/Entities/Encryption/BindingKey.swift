@@ -58,13 +58,16 @@ public extension BindingKey {
       return false
     }
   }
-  
+
+  /// - Parameter clientId: The id of an attested client. When set, it is used as the proof's `iss`
+  ///   ahead of the binding key's `issuer`, since OID4VCI Appendix F.1 requires `iss` to be the `client_id`.
   func toSupportedProof(
     issuanceRequester: IssuanceRequesterType,
     credentialSpec: CredentialSupported,
     keyAttestationJwt: KeyAttestationJWT? = nil,
     cNonce: String?,
-    omitIss: Bool
+    omitIss: Bool,
+    clientId: ClientId? = nil
   ) async throws -> Proof {
     switch self {
     case .jwt(
@@ -103,7 +106,7 @@ public extension BindingKey {
         JWTClaimNames.issuedAt: Int(Date().timeIntervalSince1970.rounded()),
         JWTClaimNames.audience: aud,
         JWTClaimNames.nonce: cNonce ?? "",
-        JWTClaimNames.issuer: issuer ?? ""
+        JWTClaimNames.issuer: clientId ?? issuer ?? ""
       ].filter { key, value in
         if let string = value as? String, string.isEmpty {
           return false
@@ -196,7 +199,7 @@ public extension BindingKey {
         JWTClaimNames.issuedAt: Int(Date().timeIntervalSince1970.rounded()),
         JWTClaimNames.audience: aud,
         JWTClaimNames.nonce: cNonce ?? "",
-        JWTClaimNames.issuer: issuer ?? ""
+        JWTClaimNames.issuer: clientId ?? issuer ?? ""
       ].filter { key, value in
         if let string = value as? String, string.isEmpty {
           return false

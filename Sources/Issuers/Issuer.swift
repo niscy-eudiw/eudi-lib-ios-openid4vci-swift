@@ -706,7 +706,8 @@ internal extension Issuer {
       let proofs = try await calculateProofs(
         bindingKeys: bindingKeys,
         supportedCredential: supportedCredential,
-        omitIss: authorizedRequest.grantType == .preAuthorizationCode || authorizedRequest.grantType == .both,
+        omitIss: Self.omitIss(grantType: authorizedRequest.grantType, client: config.client),
+        clientId: config.client.attested?.id,
         nonce: cNonce?.nonce.cNonce
       )
       switch proofs.count {
@@ -767,6 +768,7 @@ internal extension Issuer {
     bindingKeys: [BindingKey],
     supportedCredential: CredentialSupported,
     omitIss: Bool,
+    clientId: ClientId?,
     nonce: String?
   ) async throws -> [Proof] {
     /// Filter for keys we care about
@@ -796,11 +798,27 @@ internal extension Issuer {
         credentialSpec: supportedCredential,
         keyAttestationJwt: attestationJwt,
         cNonce: nonce,
-        omitIss: omitIss
+        omitIss: omitIss,
+        clientId: clientId
       )
       proofs.append(proof)
     }
     return proofs
+  }
+
+  /// OID4VCI Appendix F.1: `iss` MUST be omitted only when the access token was obtained
+  /// from a Pre-Authorized Code Flow through anonymous access to the token endpoint.
+  /// A client authenticating with a Wallet Attestation is not anonymous.
+  static func omitIss(grantType: GrantType?, client: Client) -> Bool {
+    switch grantType {
+    case .preAuthorizationCode, .both:
+      if case .public = client {
+        return true
+      }
+      return false
+    case .authorizationCode, .none:
+      return false
+    }
   }
 
   /// Validates that no two binding keys share the same public key.
